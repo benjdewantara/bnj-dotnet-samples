@@ -5,16 +5,41 @@ using net8AspNetIdentity.Data;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlite(connectionString));
-builder.Services.AddDatabaseDeveloperPageExceptionFilter();
+var connectionString =
+    builder.Configuration
+        .GetConnectionString("DefaultConnection") ??
+    throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+builder.Services
+    .AddDbContext<ApplicationDbContext>(options =>
+        {
+            options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString));
+        }
+    );
+// builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
-builder.Services.AddDefaultIdentity<IdentityUser>(options => options.SignIn.RequireConfirmedAccount = true)
-    .AddEntityFrameworkStores<ApplicationDbContext>();
-builder.Services.AddControllersWithViews();
+builder.Services
+    .AddDefaultIdentity<IdentityUser>(options =>
+        {
+            options.SignIn.RequireConfirmedAccount = true;
+            //    
+        }
+    )
+    .AddEntityFrameworkStores<ApplicationDbContext>()
+    ;
+builder.Services
+    .AddControllersWithViews();
 
 var app = builder.Build();
+
+{
+    using var serviceScope = app.Services.CreateScope();
+    var applicationDbContext = serviceScope.ServiceProvider.GetService<ApplicationDbContext>()!;
+    bool pendingMigrationsExist = applicationDbContext.Database.GetPendingMigrations().Any();
+    if (pendingMigrationsExist)
+    {
+        applicationDbContext.Database.Migrate();
+    }
+}
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
